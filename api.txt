@@ -11,3 +11,9 @@ curl --request POST --url https://chatgpt-api8.p.rapidapi.com/ --header "X-Rapid
 3.
 
 curl --request POST --url https://chatgpt-api8.p.rapidapi.com/ --header "X-RapidAPI-Host: chatgpt-api8.p.rapidapi.com" --header "X-RapidAPI-Key: 6043ced090msh14504c735f8f496p183ebajsnff607db09c1f" --header "content-type: application/json" --data "[ { \"content\": \"Hello! I'm an AI assistant bot based on ChatGPT 3. How may I help you?\", \"role\": \"system\" }, { \"content\": \"who won the super bowl 2019?\", \"role\": \"user\" } ]"
+
+
+
+4.
+
+sed 's/\\n/\n/g' input_file > output_file
