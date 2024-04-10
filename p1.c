@@ -1,105 +1,79 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
+#include <semaphore.h>
 
-#define N 5 // Number of diners
+#define MAX_DINERS 100
+#define BATCH_SIZE 10
+
+int num_diners = 0;           // Number of diners currently in the restaurant
+int num_finished_diners = 0;  // Number of diners that have finished their meal
 
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t cond_front_door = PTHREAD_COND_INITIALIZER;
-pthread_cond_t cond_back_door = PTHREAD_COND_INITIALIZER;
+sem_t front_door_sem;
+sem_t back_door_sem;
 
-int diners_inside = 0; // Number of diners currently inside the restaurant
-int served_diners = 0; // Number of diners served in the current batch
+void* diner_thread(void* arg) {
+    int diner_id = *(int*)arg;
 
-void *diner(void *arg) {
-    int id = *((int *)arg);
+    sem_wait(&front_door_sem);
 
-    // Wait for the front door to open
     pthread_mutex_lock(&mutex);
-    while (diners_inside == N) {
-        pthread_cond_wait(&cond_front_door, &mutex);
-    }
+    num_diners++;
+    printf("Diner %d entered the restaurant. Total diners: %d\n", diner_id, num_diners);
 
-    // Enter the restaurant
-    diners_inside++;
-    printf("Diner %d entered the restaurant.\n", id);
-
-    // If all N diners have entered, notify the restaurant to start serving
-    if (diners_inside == N) {
-        pthread_cond_signal(&cond_back_door);
+    if (num_diners == BATCH_SIZE) {
+        sem_post(&back_door_sem);
     }
 
     pthread_mutex_unlock(&mutex);
 
-    // Wait for the back door to open
+    // Simulating diner having a meal
+    sleep(rand() % 5 + 1);
+
     pthread_mutex_lock(&mutex);
-    while (served_diners < N) {
-        pthread_cond_wait(&cond_back_door, &mutex);
-    }
+    num_finished_diners++;
+    printf("Diner %d finished their meal. Total finished diners: %d\n", diner_id, num_finished_diners);
 
-    // Exit the restaurant
-    diners_inside--;
-    served_diners--;
-    printf("Diner %d exited the restaurant.\n", id);
-
-    // If all diners have exited, notify the restaurant to open the front door
-    if (diners_inside == 0) {
-        pthread_cond_signal(&cond_front_door);
+    if (num_finished_diners == BATCH_SIZE) {
+        num_diners = 0;
+        num_finished_diners = 0;
+        sem_post(&front_door_sem);
+        sem_wait(&back_door_sem);
+        printf("All diners have exited. Next batch is ready.\n");
     }
 
     pthread_mutex_unlock(&mutex);
 
-    return NULL;
-}
-
-void *restaurant(void *arg) {
-    while (1) {
-        // Open the front door
-        pthread_mutex_lock(&mutex);
-        while (diners_inside > 0) {
-            pthread_cond_wait(&cond_front_door, &mutex);
-        }
-
-        // Serve the diners
-        printf("Restaurant serving the diners.\n");
-        served_diners = N;
-
-        // Notify the diners that the back door is open
-        pthread_cond_broadcast(&cond_back_door);
-
-        // Wait for all diners to exit
-        while (diners_inside < N) {
-            pthread_cond_wait(&cond_front_door, &mutex);
-        }
-
-        // Prepare for the next batch
-        printf("Restaurant preparing for the next batch.\n");
-        served_diners = 0;
-
-        pthread_mutex_unlock(&mutex);
-    }
-
-    return NULL;
+    sem_post(&front_door_sem);
+    pthread_exit(NULL);
 }
 
 int main() {
-    pthread_t restaurant_thread;
-    pthread_t diner_threads[N];
-    int diner_ids[N];
-    int i;
+    srand(time(NULL));
 
-    // Create the restaurant thread
-    pthread_create(&restaurant_thread, NULL, restaurant, NULL);
+    pthread_t diner_threads[MAX_DINERS];
+    int diner_ids[MAX_DINERS];
 
-    // Create the diner threads
-    for (i = 0; i < N; i++) {
+    sem_init(&front_door_sem, 0, BATCH_SIZE);
+    sem_init(&back_door_sem, 0, 0);
+
+    // Create diner threads
+    for (int i = 0; i < MAX_DINERS; i++) {
         diner_ids[i] = i + 1;
-        pthread_create(&diner_threads[i], NULL, diner, &diner_ids[i]);
+        if (pthread_create(&diner_threads[i], NULL, diner_thread, &diner_ids[i]) != 0) {
+            fprintf(stderr, "Error creating diner thread %d\n", i + 1);
+            exit(1);
+        }
     }
 
-    // Wait for all threads to finish
-    pthread_join(restaurant_thread, NULL);
-    for (i = 0; i < N; i++) {
+    // Wait for the main thread to be canceled (run infinitely)
+    pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
+    pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+    pthread_cancel(pthread_self());
+
+    // Join diner threads (won't be reached in this case)
+    for (int i = 0; i < MAX_DINERS; i++) {
         pthread_join(diner_threads[i], NULL);
     }
 
