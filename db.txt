@@ -1,0 +1,291 @@
+//creation
+
+CREATE TABLE SUPPLIER (
+    Sno CHAR(2) PRIMARY KEY,
+    Sname VARCHAR(50) NOT NULL,
+    Status INT CHECK (Status % 10 = 0 AND Status <= 50),
+    City VARCHAR(50) CHECK (City = UPPER(City))
+);
+
+CREATE TABLE PART (
+    Pno CHAR(2) PRIMARY KEY,
+    Pname VARCHAR(50) NOT NULL,
+    Color VARCHAR(50) CHECK (Color = UPPER(Color)),
+    Weight INT,
+    City VARCHAR(50) CHECK (City = UPPER(City))
+);
+
+CREATE TABLE SHIPMENT (
+    Sno CHAR(2),
+    Pno CHAR(2),
+    Qty INT CHECK (Qty <= 1000),
+    Price DECIMAL(10,3),
+    PRIMARY KEY (Sno, Pno),
+    FOREIGN KEY (Sno) REFERENCES SUPPLIER(Sno),
+    FOREIGN KEY (Pno) REFERENCES PART(Pno)
+);
+
+
+
+1.	Print part numbers and names for all parts supplied by s2.
+
+  SELECT P.Pno, P.Pname
+FROM PART P
+INNER JOIN SHIPMENT S ON P.Pno = S.Pno
+WHERE S.Sno = 's2';
+
+2.	Print the details of the same colored parts.
+  SELECT *
+FROM PART
+WHERE Color IN (SELECT Color FROM PART GROUP BY Color HAVING COUNT(*) > 1);
+
+  
+3.	Display the suppliers who are from the same city.
+  SELECT S1.Sname AS Supplier1, S2.Sname AS Supplier2, S1.City
+FROM SUPPLIER S1, SUPPLIER S2
+WHERE S1.Sno < S2.Sno AND S1.City = S2.City;
+
+4.	Print suppliers who are not from Paris.
+  SELECT *
+FROM SUPPLIER
+WHERE City != 'Paris';
+
+5.	Print all shipment information where the quantity is in the range 300 to 750 inclusive.
+  SELECT *
+FROM SHIPMENT
+WHERE Qty BETWEEN 300 AND 750;
+
+6.	Print all part names shipped with the range 200 to 750 . Results should not include duplicates.
+  SELECT DISTINCT P.Pname
+FROM PART P
+INNER JOIN SHIPMENT S ON P.Pno = S.Pno
+WHERE S.Qty BETWEEN 200 AND 750;
+
+7.	Print supplier names for suppliers who ship P2 or P4.
+  SELECT DISTINCT S.Sname
+FROM SUPPLIER S
+INNER JOIN SHIPMENT SH ON S.Sno = SH.Sno
+WHERE SH.Pno IN ('p2', 'p4');
+
+8.	Print suppliers who ship at least all those parts shipped by supplier S3.  Do not include S3 in the answer and do not "count".
+  SELECT DISTINCT S.Sname
+FROM SUPPLIER S
+WHERE NOT EXISTS (
+    SELECT Pno
+    FROM SHIPMENT
+    WHERE Sno = 's3'
+    EXCEPT
+    SELECT Pno
+    FROM SHIPMENT
+    WHERE Sno = S.Sno
+);
+
+9.	List suppliers who ship at least one type of red part.
+SELECT DISTINCT S.Sname
+FROM SUPPLIER S
+INNER JOIN SHIPMENT SH ON S.Sno = SH.Sno
+INNER JOIN PART P ON SH.Pno = P.Pno
+WHERE P.Color = 'Red';
+
+  
+10.	Print part names which have more than two suppliers.
+  SELECT DISTINCT S.Sname
+FROM SUPPLIER S
+INNER JOIN SHIPMENT SH ON S.Sno = SH.Sno
+INNER JOIN PART P ON SH.Pno = P.Pno
+WHERE P.Color = 'Red';
+
+11.	Print supplier numbers for suppliers who do not ship any red parts.
+  SELECT DISTINCT S.Sno
+FROM SUPPLIER S
+WHERE S.Sno NOT IN (
+    SELECT DISTINCT SH.Sno
+    FROM SHIPMENT SH
+    INNER JOIN PART P ON SH.Pno = P.Pno
+    WHERE P.Color = 'Red'
+);
+
+12.	Print supplier numbers for suppliers who ship ONLY red parts.
+  SELECT DISTINCT S.Sno
+FROM SUPPLIER S
+WHERE S.Sno NOT IN (
+    SELECT DISTINCT SH.Sno
+    FROM SHIPMENT SH
+    INNER JOIN PART P ON SH.Pno = P.Pno
+    WHERE P.Color != 'Red'
+);
+
+13.	Print supplier names for suppliers who do not currently ship any parts.
+  SELECT S.Sname
+FROM SUPPLIER S
+WHERE S.Sno NOT IN (
+    SELECT DISTINCT Sno FROM SHIPMENT
+);
+
+14.	Print supplier names for suppliers who ship at least one part that is also shipped by supplier S2.  Do not include S2 in the answer.
+  SELECT DISTINCT S.Sname
+FROM SUPPLIER S
+INNER JOIN SHIPMENT SH ON S.Sno = SH.Sno
+WHERE SH.Pno IN (
+    SELECT DISTINCT Pno
+    FROM SHIPMENT
+    WHERE Sno = 's2'
+) AND S.Sno != 's2';
+
+15.	Print the details of parts ( part no, partname, qty ) supplied by ‘Blake’
+  SELECT P.Pno, P.Pname, SH.Qty
+FROM PART P
+INNER JOIN SHIPMENT SH ON P.Pno = SH.Pno
+INNER JOIN SUPPLIER S ON SH.Sno = S.Sno
+WHERE S.Sname = 'Blake';
+
+16.	For each part, print part no, part name, color, weight and number of suppliers ship the part. If there is no shipment , the number of suppliers will be 0.  (left outer)
+  SELECT P.Pno, P.Pname, P.Color, P.Weight, COUNT(S.Sno) AS NumSuppliers
+FROM PART P
+LEFT JOIN SHIPMENT SH ON P.Pno = SH.Pno
+LEFT JOIN SUPPLIER S ON SH.Sno = S.Sno
+GROUP BY P.Pno, P.Pname, P.Color, P.Weight;
+
+17.	Print the shipment information by price in descending numeric order. Exclude null.
+  SELECT *
+FROM SHIPMENT
+WHERE Price IS NOT NULL
+ORDER BY Price DESC;
+
+18.	Print supplier numbers for suppliers who are located in the same city as supplier S1. Do not include S1 in the answer.
+  SELECT DISTINCT S.Sno
+FROM SUPPLIER S
+WHERE S.City = (
+    SELECT City
+    FROM SUPPLIER
+    WHERE Sname = 'Smith'
+) AND S.Sno != 's1';
+
+19.	Print part numbers for all parts shipped by more than one supplier.  You may use a count on this one.
+  SELECT Pno
+FROM SHIPMENT
+GROUP BY Pno
+HAVING COUNT(DISTINCT Sno) > 1;
+
+20.	Print supplier numbers for suppliers with status value less than the current average status value of all suppliers.
+SELECT Sno
+FROM SUPPLIER
+WHERE Status < (
+    SELECT AVG(Status) 
+    FROM SUPPLIER
+);
+
+21.	Print the total number of suppliers (regardless of whether they are currently shipping any parts)..
+  SELECT COUNT(*) AS TotalSuppliers
+FROM SUPPLIER;
+
+22.	Print the total number of suppliers currently shipping parts.
+  SELECT COUNT(DISTINCT Sno) AS SuppliersShippingParts
+FROM SHIPMENT;
+
+23.	Print Part name, supplier name and unit cost for the shipment(s) with the highest unit cost. 
+  SELECT P.Pname, S.Sname, SH.Price AS UnitCost
+FROM PART P
+INNER JOIN SHIPMENT SH ON P.Pno = SH.Pno
+INNER JOIN SUPPLIER S ON SH.Sno = S.Sno
+WHERE SH.Price = (SELECT MAX(Price) FROM SHIPMENT);
+
+  
+24.	Find out the first two suppliers for the shipment(s) with the highest total cost.
+  SELECT DISTINCT Sno
+FROM (
+    SELECT Sno
+    FROM SHIPMENT
+    GROUP BY Sno
+    ORDER BY SUM(Qty * Price) DESC
+    LIMIT 2
+) AS TopTwoSuppliers;
+
+25.	Print all the supplier information for the supplier(s) making the most money.  The supplier's money is determined by the sum of all shipment costs.  Each shipment cost is found by the number of units being shipped times the price per unit.
+  SELECT *
+FROM SUPPLIER
+WHERE Sno IN (
+    SELECT Sno
+    FROM SHIPMENT
+    GROUP BY Sno
+    ORDER BY SUM(Qty * Price) DESC
+    LIMIT 1
+);
+
+26.	For each supplier, print the supplier number and how many different parts are shipped.  For example, S1 6; S2 2, ..   S5  null
+  
+  SELECT S.Sno, COUNT(DISTINCT SH.Pno) AS NumPartsShipped
+FROM SUPPLIER S
+LEFT JOIN SHIPMENT SH ON S.Sno = SH.Sno
+GROUP BY S.Sno;
+
+27.	For each supplier , print his details with the total quantity  shipped. If no shipment for any supplier, place null.   eg:  [S2    Jones  Paris  700] [s5   	Adams   null  null]
+  
+  SELECT CONCAT('[', S.Sno, ' ', S.Sname, ' ', S.City, ' ', IFNULL(SUM(SH.Qty), 'null'), ']') AS SupplierInfo
+FROM SUPPLIER S
+LEFT JOIN SHIPMENT SH ON S.Sno = SH.Sno
+GROUP BY S.Sno;
+
+28.	 Find the supplier and rating who supplied a total of 250 units.
+  
+  SELECT S.Sno, S.Rating
+FROM SUPPLIER S
+INNER JOIN (
+    SELECT Sno
+    FROM SHIPMENT
+    GROUP BY Sno
+    HAVING SUM(Qty) = 250
+) AS TotalUnits ON S.Sno = TotalUnits.Sno;
+
+29.	 Print supplier names for suppliers who ship all parts. (Division)
+  SELECT S.Sname
+FROM SUPPLIER S
+WHERE NOT EXISTS (
+    SELECT Pno
+    FROM PART
+    WHERE NOT EXISTS (
+        SELECT *
+        FROM SHIPMENT
+        WHERE Sno = S.Sno AND Pno = PART.Pno
+    )
+);
+
+30.	Delete the part that has the lowest shipment history.
+  DELETE FROM PART
+WHERE Pno IN (
+    SELECT Pno
+    FROM (
+        SELECT Pno
+        FROM SHIPMENT
+        GROUP BY Pno
+        ORDER BY COUNT(*) ASC
+        LIMIT 1
+    ) AS LowestShipmentHistory
+);
+
+31.	 Assign rating 50 to the supplier who made the highest shipment amount. Note: Highest shipment amount computed by summing qty x price for each supplier.
+  UPDATE SUPPLIER
+SET Rating = 50
+WHERE Sno IN (
+    SELECT Sno
+    FROM (
+        SELECT Sno
+        FROM SHIPMENT
+        GROUP BY Sno
+        ORDER BY SUM(Qty * Price) DESC
+        LIMIT 1
+    ) AS HighestShipmentSupplier
+);
+
+32.	Create a view called Part_view that includes the following data..
+Pno,	Pname,	Color,	Weight,	City  ,total cost and total qty shipped for each product
+
+  CREATE VIEW Part_view AS
+SELECT P.Pno, P.Pname, P.Color, P.Weight, P.City, SUM(S.Qty * S.Price) AS TotalCost, SUM(S.Qty) AS TotalQtyShipped
+FROM PART P
+LEFT JOIN SHIPMENT S ON P.Pno = S.Pno
+GROUP BY P.Pno;
+
+
+
+
