@@ -1,0 +1,112 @@
+package com.hubberspot.webservice;
+
+import javax.jws.WebService;
+import javax.jws.WebMethod;
+import javax.jws.WebParam;
+
+// @WebService annotation makes a class a Web Service
+@WebService(serviceName = "CalculatorService")
+public class CalculatorService {
+
+    // @WebMethod annotation expose a method as a service.
+    @WebMethod(operationName = "sum")
+    // @WebParam annotation indicates parameters to method coming from SOAP request.
+    public int sum(@WebParam(name = "number1") int number1, 
+                   @WebParam(name = "number2") int number2) {
+        
+        int sum = 0;
+        
+        sum = number1 + number2;
+        
+        return sum;
+    }    
+}
+
+
+
+
+
+
+
+
+xmlns:wsp="http://www.w3.org/ns/ws-policy" 
+             xmlns:tns="http://webservice.hubberspot.com/" 
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+             xmlns:wsp1_2="http://schemas.xmlsoap.org/ws/2004/09/policy" 
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" 
+             xmlns:wsam="http://www.w3.org/2007/05/addressing/metadata" 
+             xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+  <types>
+    <xsd:schema>
+      <xsd:import namespace="http://webservice.hubberspot.com/" 
+                  schemaLocation="CalculatorService_schema1.xsd"/>
+    </xsd:schema>
+  </types>
+  <message name="sum">
+    <part name="parameters" element="tns:sum"/>
+  </message>
+  <message name="sumResponse">
+    <part name="parameters" element="tns:sumResponse"/>
+  </message>
+  <portType name="CalculatorService">
+    <operation name="sum">
+      <input wsam:Action="http://webservice.hubberspot.com/CalculatorService/sumRequest" 
+             message="tns:sum"/>
+      <output wsam:Action="http://webservice.hubberspot.com/CalculatorService/sumResponse" 
+              message="tns:sumResponse"/>
+    </operation>
+  </portType>
+  <binding name="CalculatorServicePortBinding" type="tns:CalculatorService">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" style="document"/>
+    <operation name="sum">
+      <soap:operation soapAction=""/>
+      <input>
+        <soap:body use="literal"/>
+      </input>
+      <output>
+        <soap:body use="literal"/>
+      </output>
+    </operation>
+  </binding>
+  <service name="CalculatorService">
+    <port name="CalculatorServicePort" binding="tns:CalculatorServicePortBinding">
+      <soap:address location="http://localhost:8080/Calculator/CalculatorService"/>
+    </port>
+  </service>
+</definitions>
+
+
+
+
+
+
+import javax.xml.namespace.QName;
+import javax.xml.ws.Service;
+import java.net.URL;
+
+public class CalculatorClient {
+
+    public static void main(String[] args) throws Exception {
+        // Replace with the actual endpoint URL of your web service
+        String endpointURL = "http://localhost:8080/Calculator/CalculatorService"; 
+
+        // Replace with the actual service name and port name
+        String serviceName = "CalculatorService";
+        String portName = "CalculatorServicePort";
+
+        // Create a QName for the service and port
+        QName serviceQName = new QName("http://webservice.hubberspot.com/", serviceName);
+        QName portQName = new QName("http://webservice.hubberspot.com/", portName);
+
+        // Create a Service object
+        Service service = Service.create(serviceQName);
+
+        // Create a port object
+        URL wsdlURL = new URL(endpointURL + "?wsdl");
+        CalculatorService port = service.getPort(portQName, CalculatorService.class);
+
+        // Call the web service methods
+        int sum = port.sum(5, 10);
+        System.out.println("Sum: " + sum);
+    }
+}
